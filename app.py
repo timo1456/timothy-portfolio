@@ -5,7 +5,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 BASE_DIR=Path(__file__).resolve().parent
 STORAGE_DIR=Path(os.environ.get("PORTFOLIO_STORAGE_PATH", str(BASE_DIR/"data")))
 DATA_DIR=STORAGE_DIR; UPLOAD_DIR=STORAGE_DIR/"uploads"
-PROJECTS_FILE=DATA_DIR/"projects.json"; CERTS_FILE=DATA_DIR/"certifications.json"; VISITS_FILE=DATA_DIR/"site_visits.json"
+PROJECTS_FILE=DATA_DIR/"projects.json"; CERTS_FILE=DATA_DIR/"certifications.json"; VISITS_FILE=DATA_DIR/"site_visits.json"; RECENT_VISITS_FILE=DATA_DIR/"recent_site_visits.json"
 app=Flask(__name__)
 app.secret_key=os.environ.get("SECRET_KEY","dev-change-this-secret-key")
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=os.environ.get("RENDER")=="true")
@@ -22,13 +22,20 @@ def get_certs(): return load_json(CERTS_FILE,[])
 def get_visits():
     return load_json(VISITS_FILE,[])
 
+def get_recent_visits():
+    return load_json(RECENT_VISITS_FILE,[])
+
 def log_visit():
-    visits=get_visits()
-    visits.append({
+    visit={
         "ip": request.remote_addr or "Unknown",
         "checked_in": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(timespec="seconds")
-    })
-    save_json(VISITS_FILE,visits[-500:])
+    }
+    all_visits=get_visits()
+    all_visits.append(visit)
+    save_json(VISITS_FILE,all_visits)
+    recent_visits=get_recent_visits()
+    recent_visits.append(visit)
+    save_json(RECENT_VISITS_FILE,recent_visits[-500:])
 def admin_required():
     if not session.get("admin"): return redirect(url_for("admin_login"))
 @app.context_processor
@@ -52,7 +59,7 @@ def admin():
 @app.get("/admin/visits")
 def admin_visits():
     auth=admin_required()
-    return auth or render_template("admin/visits.html",visits=list(reversed(get_visits())))
+    return auth or render_template("admin/visits.html",visits=list(reversed(get_recent_visits())),all_time_count=len(get_visits()))
 
 @app.route("/admin/login",methods=["GET","POST"])
 def admin_login():
