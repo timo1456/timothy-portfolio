@@ -1,14 +1,16 @@
 import json, os, secrets
 from pathlib import Path
 from flask import Flask, abort, redirect, render_template, request, session, url_for, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 BASE_DIR=Path(__file__).resolve().parent
 STORAGE_DIR=Path(os.environ.get("PORTFOLIO_STORAGE_PATH", str(BASE_DIR/"data")))
 DATA_DIR=STORAGE_DIR; UPLOAD_DIR=STORAGE_DIR/"uploads"
-PROJECTS_FILE=DATA_DIR/"projects.json"; CERTS_FILE=DATA_DIR/"certifications.json"
+PROJECTS_FILE=DATA_DIR/"projects.json"; CERTS_FILE=DATA_DIR/"certifications.json"; VISITS_FILE=DATA_DIR/"site_visits.json"
 app=Flask(__name__)
 app.secret_key=os.environ.get("SECRET_KEY","dev-change-this-secret-key")
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=os.environ.get("RENDER")=="true")
 ADMIN_PASSWORD=os.environ.get("ADMIN_PASSWORD","change-me")
+app.wsgi_app=ProxyFix(app.wsgi_app,x_for=1)
 DATA_DIR.mkdir(exist_ok=True); UPLOAD_DIR.mkdir(exist_ok=True)
 def load_json(path, default):
     if not path.exists(): path.write_text(json.dumps(default,indent=2),encoding="utf-8")
@@ -17,13 +19,14 @@ def load_json(path, default):
 def save_json(path,data): path.write_text(json.dumps(data,indent=2),encoding="utf-8")
 def get_projects(): return load_json(PROJECTS_FILE,[])
 def get_certs(): return load_json(CERTS_FILE,[])
+def get_visits(): return load_json(VISITS_FILE,[])\ndef log_visit():\n    visits=get_visits()\n    visits.append({"ip":request.remote_addr or "Unknown","checked_in":__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(timespec="seconds")})\n    save_json(VISITS_FILE,visits[-500:])
 def admin_required():
     if not session.get("admin"): return redirect(url_for("admin_login"))
 @app.context_processor
 def globals():
     return {"site_name":"Idowu Timothy","email":"timothypraiseofficial@gmail.com","github":"https://github.com/timo1456"}
 @app.get("/")
-def home(): return render_template("index.html",projects=[p for p in get_projects() if p.get("featured")][:6],certifications=get_certs())
+def home():\n    log_visit()\n    return render_template("index.html",projects=[p for p in get_projects() if p.get("featured")][:6],certifications=get_certs())
 @app.get("/projects")
 def projects(): return render_template("projects.html",projects=get_projects())
 @app.get("/projects/<int:project_id>")
@@ -34,7 +37,7 @@ def project(project_id):
 @app.get("/admin")
 def admin():
     auth=admin_required()
-    return auth or render_template("admin/dashboard.html",projects=get_projects(),certifications=get_certs())
+    return auth or render_template("admin/dashboard.html",projects=get_projects(),certifications=get_certs(),visits=list(reversed(get_visits())))
 @app.route("/admin/login",methods=["GET","POST"])
 def admin_login():
     error=None
