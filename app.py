@@ -19,14 +19,25 @@ def load_json(path, default):
 def save_json(path,data): path.write_text(json.dumps(data,indent=2),encoding="utf-8")
 def get_projects(): return load_json(PROJECTS_FILE,[])
 def get_certs(): return load_json(CERTS_FILE,[])
-def get_visits(): return load_json(VISITS_FILE,[])\ndef log_visit():\n    visits=get_visits()\n    visits.append({"ip":request.remote_addr or "Unknown","checked_in":__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(timespec="seconds")})\n    save_json(VISITS_FILE,visits[-500:])
+def get_visits():
+    return load_json(VISITS_FILE,[])
+
+def log_visit():
+    visits=get_visits()
+    visits.append({
+        "ip": request.remote_addr or "Unknown",
+        "checked_in": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(timespec="seconds")
+    })
+    save_json(VISITS_FILE,visits[-500:])
 def admin_required():
     if not session.get("admin"): return redirect(url_for("admin_login"))
 @app.context_processor
 def globals():
     return {"site_name":"Idowu Timothy","email":"timothypraiseofficial@gmail.com","github":"https://github.com/timo1456"}
 @app.get("/")
-def home():\n    log_visit()\n    return render_template("index.html",projects=[p for p in get_projects() if p.get("featured")][:6],certifications=get_certs())
+def home():
+    log_visit()
+    return render_template("index.html",projects=[p for p in get_projects() if p.get("featured")][:6],certifications=get_certs())
 @app.get("/projects")
 def projects(): return render_template("projects.html",projects=get_projects())
 @app.get("/projects/<int:project_id>")
