@@ -61,6 +61,13 @@ def admin_visits():
     auth=admin_required()
     return auth or render_template("admin/visits.html",visits=list(reversed(get_recent_visits())),all_time_count=len(get_visits()))
 
+@app.post("/admin/visits/clear")
+def clear_recent_visits():
+    auth=admin_required()
+    if auth: return auth
+    save_json(RECENT_VISITS_FILE,[])
+    return redirect(url_for("admin_visits"))
+
 @app.route("/admin/login",methods=["GET","POST"])
 def admin_login():
     error=None
