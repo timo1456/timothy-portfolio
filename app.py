@@ -78,6 +78,13 @@ def delete_certification(cert_id):
     auth=admin_required()
     if auth: return auth
     save_json(CERTS_FILE,[c for c in get_certs() if c.get("id")!=cert_id]); return redirect(url_for("admin"))
+@app.get("/IMG_20260125_132037_097~2.jpg")
+def profile_photo(): return send_from_directory(BASE_DIR, "IMG_20260125_132037_097~2.jpg")
+@app.get("/certifications/<int:cert_id>")
+def certification(cert_id):
+    item=next((c for c in get_certs() if c.get("id")==cert_id),None)
+    if not item: abort(404)
+    return render_template("certification.html", cert=item)
 @app.get("/uploads/<path:filename>")
 def uploads(filename): return send_from_directory(UPLOAD_DIR,filename)
 @app.get("/health")
