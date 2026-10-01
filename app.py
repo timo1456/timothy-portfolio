@@ -56,7 +56,28 @@ def new_project():
             name=secrets.token_hex(6)+"-"+Path(image.filename).name.replace(" ","-"); image.save(UPLOAD_DIR/name); image_name="/uploads/"+name
         projects.append({"id":next_id,"name":request.form.get("name","").strip(),"description":request.form.get("description","").strip(),"image_url":image_name,"project_url":request.form.get("project_url","").strip(),"featured":request.form.get("featured")=="on"})
         save_json(PROJECTS_FILE,projects); return redirect(url_for("admin"))
-    return render_template("admin/project_form.html")
+    return render_template("admin/project_form.html",editing=False,project=None)
+
+@app.route("/admin/projects/<int:project_id>/edit",methods=["GET","POST"])
+def edit_project(project_id):
+    auth=admin_required()
+    if auth: return auth
+    projects=get_projects()
+    item=next((p for p in projects if p.get("id")==project_id),None)
+    if not item: abort(404)
+    if request.method=="POST":
+        item["name"]=request.form.get("name","").strip()
+        item["description"]=request.form.get("description","").strip()
+        item["project_url"]=request.form.get("project_url","").strip()
+        item["featured"]=request.form.get("featured")=="on"
+        image=request.files.get("image")
+        if image and image.filename:
+            name=secrets.token_hex(6)+"-"+Path(image.filename).name.replace(" ","-")
+            image.save(UPLOAD_DIR/name)
+            item["image_url"]="/uploads/"+name
+        save_json(PROJECTS_FILE,projects)
+        return redirect(url_for("admin"))
+    return render_template("admin/project_form.html",editing=True,project=item)
 @app.post("/admin/projects/<int:project_id>/delete")
 def delete_project(project_id):
     auth=admin_required()
@@ -68,14 +89,38 @@ def new_certification():
     if auth: return auth
     if request.method=="POST":
         certs=get_certs(); next_id=max([c.get("id",0) for c in certs] or [0])+1
-        file=request.files.get("file"); file_url=""
+        file=request.files.get("file"); file_url=""; file_type=""
         if file and file.filename:
             ext=Path(file.filename).suffix.lower()
-            if ext not in {".jpg",".jpeg",".png",".webp",".pdf"}: return render_template("admin/cert_form.html",error="Use an image or PDF.")
-            name=secrets.token_hex(6)+"-"+Path(file.filename).name.replace(" ","-"); file.save(UPLOAD_DIR/name); file_url="/uploads/"+name
-        certs.append({"id":next_id,"name":request.form.get("name","").strip(),"issuer":request.form.get("issuer","").strip(),"date":request.form.get("date","").strip(),"file_url":file_url})
+            if ext not in {".jpg",".jpeg",".png",".webp",".pdf"}: return render_template("admin/cert_form.html",error="Use an image or PDF.",editing=False,cert=None)
+            name=secrets.token_hex(6)+"-"+Path(file.filename).name.replace(" ","-"); file.save(UPLOAD_DIR/name); file_url="/uploads/"+name; file_type=ext.lstrip(".")
+        certs.append({"id":next_id,"name":request.form.get("name","").strip(),"issuer":request.form.get("issuer","").strip(),"date":request.form.get("date","").strip(),"file_url":file_url,"file_type":file_type})
         save_json(CERTS_FILE,certs); return redirect(url_for("admin"))
-    return render_template("admin/cert_form.html",error=None)
+    return render_template("admin/cert_form.html",error=None,editing=False,cert=None)
+
+@app.route("/admin/certifications/<int:cert_id>/edit",methods=["GET","POST"])
+def edit_certification(cert_id):
+    auth=admin_required()
+    if auth: return auth
+    certs=get_certs()
+    item=next((c for c in certs if c.get("id")==cert_id),None)
+    if not item: abort(404)
+    if request.method=="POST":
+        item["name"]=request.form.get("name","").strip()
+        item["issuer"]=request.form.get("issuer","").strip()
+        item["date"]=request.form.get("date","").strip()
+        file=request.files.get("file")
+        if file and file.filename:
+            ext=Path(file.filename).suffix.lower()
+            if ext not in {".jpg",".jpeg",".png",".webp",".pdf"}:
+                return render_template("admin/cert_form.html",error="Use an image or PDF.",editing=True,cert=item)
+            name=secrets.token_hex(6)+"-"+Path(file.filename).name.replace(" ","-")
+            file.save(UPLOAD_DIR/name)
+            item["file_url"]="/uploads/"+name
+            item["file_type"]=ext.lstrip(".")
+        save_json(CERTS_FILE,certs)
+        return redirect(url_for("admin"))
+    return render_template("admin/cert_form.html",error=None,editing=True,cert=item)
 @app.post("/admin/certifications/<int:cert_id>/delete")
 def delete_certification(cert_id):
     auth=admin_required()
@@ -87,6 +132,8 @@ def profile_photo(): return send_from_directory(BASE_DIR, "IMG_20260125_132037_0
 def certification(cert_id):
     item=next((c for c in get_certs() if c.get("id")==cert_id),None)
     if not item: abort(404)
+    if not item.get("file_type") and item.get("file_url"):
+        item["file_type"]=Path(item["file_url"]).suffix.lower().lstrip(".")
     return render_template("certification.html", cert=item)
 @app.get("/uploads/<path:filename>")
 def uploads(filename): return send_from_directory(UPLOAD_DIR,filename)
