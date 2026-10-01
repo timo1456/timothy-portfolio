@@ -49,6 +49,11 @@ def project(project_id):
 def admin():
     auth=admin_required()
     return auth or render_template("admin/dashboard.html",projects=get_projects(),certifications=get_certs(),visits=list(reversed(get_visits())))
+@app.get("/admin/visits")
+def admin_visits():
+    auth=admin_required()
+    return auth or render_template("admin/visits.html",visits=list(reversed(get_visits())))
+
 @app.route("/admin/login",methods=["GET","POST"])
 def admin_login():
     error=None
