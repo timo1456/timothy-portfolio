@@ -68,6 +68,14 @@ def clear_recent_visits():
     save_json(RECENT_VISITS_FILE,[])
     return redirect(url_for("admin_visits"))
 
+@app.post("/admin/visits/all-time/clear")
+def clear_all_time_visits():
+    auth=admin_required()
+    if auth: return auth
+    save_json(VISITS_FILE,[])
+    save_json(RECENT_VISITS_FILE,[])
+    return redirect(url_for("admin_visits"))
+
 @app.route("/admin/login",methods=["GET","POST"])
 def admin_login():
     error=None
