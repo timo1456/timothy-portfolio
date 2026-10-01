@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: timothy-portfolio
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.13.5
