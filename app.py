@@ -2,9 +2,12 @@ import json, os, secrets
 from pathlib import Path
 from flask import Flask, abort, redirect, render_template, request, session, url_for, send_from_directory
 BASE_DIR=Path(__file__).resolve().parent
-DATA_DIR=BASE_DIR/"data"; UPLOAD_DIR=BASE_DIR/"uploads"
+STORAGE_DIR=Path(os.environ.get("PORTFOLIO_STORAGE_PATH", str(BASE_DIR/"data")))
+DATA_DIR=STORAGE_DIR; UPLOAD_DIR=STORAGE_DIR/"uploads"
 PROJECTS_FILE=DATA_DIR/"projects.json"; CERTS_FILE=DATA_DIR/"certifications.json"
-app=Flask(__name__); app.secret_key=os.environ.get("SECRET_KEY","dev-change-this-secret-key")
+app=Flask(__name__)
+app.secret_key=os.environ.get("SECRET_KEY","dev-change-this-secret-key")
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=os.environ.get("RENDER")=="true")
 ADMIN_PASSWORD=os.environ.get("ADMIN_PASSWORD","change-me")
 DATA_DIR.mkdir(exist_ok=True); UPLOAD_DIR.mkdir(exist_ok=True)
 def load_json(path, default):
